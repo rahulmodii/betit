@@ -13,12 +13,17 @@
       "name": "betit",
       "source": "./plugins/betit",
       "description": "Claude bets points on nailing every task in one shot. You are the judge. Scores persist across sessions.",
-      "version": "1.0.0",
+      "version": "1.1.0",
       "author": {
         "name": "Rahul Modi",
         "url": "https://rahulmodi.dev"
       },
-      "keywords": ["gamification", "scoring", "productivity", "betting"],
+      "keywords": [
+        "gamification",
+        "scoring",
+        "productivity",
+        "betting"
+      ],
       "category": "productivity"
     }
   ]
