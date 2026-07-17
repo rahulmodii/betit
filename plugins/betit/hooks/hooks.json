@@ -1,0 +1,15 @@
+{
+  "description": "Injects betit protocol and live scoreboard before each user prompt",
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}\"/scripts/betit.py context"
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "name": "betit",
+  "version": "1.0.0",
+  "description": "Claude bets points on nailing every task in one shot. You are the judge. Scores persist across sessions.",
+  "author": {
+    "name": "Rahul Modi",
+    "url": "https://rahulmodi.dev"
+  }
+}
