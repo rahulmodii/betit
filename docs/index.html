@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>betit — your AI puts points on the line</title>
+<meta name="description" content="A Claude Code plugin. Claude bets points it one-shots your task. You are the judge. Scores persist forever.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='46' fill='%23E8B23A'/><circle cx='50' cy='50' r='34' fill='none' stroke='%230B2416' stroke-width='4' stroke-dasharray='14 8'/><text x='50' y='63' font-size='38' text-anchor='middle' font-family='monospace' fill='%230B2416'>🎲</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --felt:#0B2416;
+  --felt-deep:#071A10;
+  --felt-line:#1C3B29;
+  --chalk:#F2EDE0;
+  --chalk-dim:#9DB3A4;
+  --gold:#E8B23A;
+  --gold-soft:#F3CD7A;
+  --loss:#E05A4E;
+  --win:#5FC98E;
+  --mono:'Space Mono',monospace;
+  --disp:'Bricolage Grotesque',sans-serif;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{background:var(--felt);color:var(--chalk);font-family:var(--disp);line-height:1.6;overflow-x:hidden}
+body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;
+  background:radial-gradient(ellipse 90% 60% at 50% -10%,rgba(232,178,58,.08),transparent 60%),
+  url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23n)' opacity='.035'/%3E%3C/svg%3E")}
+.wrap{max-width:1060px;margin:0 auto;padding:0 24px;position:relative;z-index:1}
+::selection{background:var(--gold);color:var(--felt-deep)}
+
+nav{display:flex;justify-content:space-between;align-items:center;padding:28px 0}
+.brand{font-family:var(--mono);font-weight:700;font-size:18px;letter-spacing:-.5px;color:var(--chalk);text-decoration:none}
+.brand .dot{color:var(--gold)}
+nav .links{display:flex;gap:26px}
+nav .links a{color:var(--chalk-dim);text-decoration:none;font-size:14px;font-family:var(--mono);transition:color .2s}
+nav .links a:hover,nav .links a:focus-visible{color:var(--gold)}
+
+.hero{padding:64px 0 40px;display:grid;grid-template-columns:1fr 1fr;gap:56px;align-items:center}
+.eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:2.5px;text-transform:uppercase;color:var(--gold);margin-bottom:20px}
+h1{font-size:clamp(52px,8vw,88px);font-weight:800;line-height:.95;letter-spacing:-3px;margin-bottom:22px}
+h1 .stake{color:var(--gold);font-style:italic}
+.sub{font-size:18px;color:var(--chalk-dim);max-width:420px;margin-bottom:32px}
+.sub strong{color:var(--chalk);font-weight:600}
+
+.cmd{display:flex;align-items:center;gap:12px;background:var(--felt-deep);border:1px solid var(--felt-line);border-radius:10px;padding:14px 16px;font-family:var(--mono);font-size:13.5px;max-width:520px}
+.cmd + .cmd{margin-top:10px}
+.cmd .p{color:var(--gold);user-select:none}
+.cmd code{flex:1;color:var(--chalk);overflow-x:auto;white-space:nowrap;scrollbar-width:none}
+.cmd code::-webkit-scrollbar{display:none}
+.copy{background:none;border:1px solid var(--felt-line);color:var(--chalk-dim);border-radius:6px;padding:5px 10px;font-family:var(--mono);font-size:11px;cursor:pointer;transition:all .2s;flex-shrink:0}
+.copy:hover,.copy:focus-visible{border-color:var(--gold);color:var(--gold)}
+.copy.done{border-color:var(--win);color:var(--win)}
+
+.term{background:var(--felt-deep);border:1px solid var(--felt-line);border-radius:14px;box-shadow:0 30px 80px rgba(0,0,0,.45),0 0 0 1px rgba(232,178,58,.06);overflow:hidden}
+.term-bar{display:flex;align-items:center;gap:7px;padding:12px 16px;border-bottom:1px solid var(--felt-line)}
+.term-bar i{width:11px;height:11px;border-radius:50%;background:var(--felt-line)}
+.term-bar i:first-child{background:var(--loss)}
+.term-bar i:nth-child(2){background:var(--gold)}
+.term-bar i:nth-child(3){background:var(--win)}
+.term-bar span{margin-left:auto;font-family:var(--mono);font-size:11px;color:var(--chalk-dim)}
+.term-body{padding:20px;font-family:var(--mono);font-size:12.5px;line-height:1.75;min-height:340px;white-space:pre-wrap}
+.t-p{color:var(--gold)}
+.t-dim{color:var(--chalk-dim)}
+.t-win{color:var(--win)}
+.t-loss{color:var(--loss)}
+.t-gold{color:var(--gold-soft)}
+.cursor{display:inline-block;width:8px;height:15px;background:var(--gold);vertical-align:-2px;animation:blink 1s steps(1) infinite}
+@keyframes blink{50%{opacity:0}}
+
+section{padding:72px 0}
+.sec-head{display:flex;align-items:baseline;gap:18px;margin-bottom:44px}
+h2{font-size:clamp(30px,4.5vw,44px);font-weight:800;letter-spacing:-1.5px}
+.sec-head .tag{font-family:var(--mono);font-size:12px;color:var(--gold);letter-spacing:2px;text-transform:uppercase}
+
+.loop{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+.card{background:var(--felt-deep);border:1px solid var(--felt-line);border-radius:14px;padding:28px;position:relative;transition:border-color .25s,transform .25s}
+.card:hover{border-color:rgba(232,178,58,.4);transform:translateY(-3px)}
+.chip{width:52px;height:52px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-weight:700;font-size:15px;margin-bottom:20px;background:var(--gold);color:var(--felt-deep);border:4px dashed rgba(7,26,16,.4)}
+.card:nth-child(2) .chip{background:var(--chalk);border-color:rgba(7,26,16,.25)}
+.card:nth-child(3) .chip{background:var(--loss);color:var(--chalk);border-color:rgba(242,237,224,.35)}
+.card h3{font-size:21px;font-weight:800;letter-spacing:-.5px;margin-bottom:10px}
+.card p{font-size:14.5px;color:var(--chalk-dim)}
+.card p code{font-family:var(--mono);font-size:12.5px;color:var(--gold-soft);background:rgba(232,178,58,.08);padding:1px 6px;border-radius:4px}
+
+.tut-step{display:grid;grid-template-columns:210px 1fr;gap:32px;padding:36px 0;border-top:1px solid var(--felt-line)}
+.tut-step:last-of-type{border-bottom:1px solid var(--felt-line)}
+.tut-num{font-family:var(--mono);color:var(--gold);font-size:13px}
+.tut-step h3{font-size:20px;font-weight:800;letter-spacing:-.5px;margin:4px 0 8px}
+.tut-step .note{font-size:14px;color:var(--chalk-dim);margin-bottom:16px;max-width:560px}
+.tut-step .note code{font-family:var(--mono);font-size:12.5px;color:var(--gold-soft)}
+.block{background:var(--felt-deep);border:1px solid var(--felt-line);border-radius:10px;padding:16px 18px;font-family:var(--mono);font-size:13px;line-height:1.8;position:relative;overflow-x:auto}
+.block .copy{position:absolute;top:10px;right:10px}
+.block .out{color:var(--chalk-dim)}
+
+.cmds table{width:100%;border-collapse:collapse;font-size:14px}
+.cmds td{padding:16px 12px;border-top:1px solid var(--felt-line);vertical-align:top}
+.cmds tr:last-child td{border-bottom:1px solid var(--felt-line)}
+.cmds td:first-child{font-family:var(--mono);color:var(--gold-soft);white-space:nowrap;width:220px;font-size:13px}
+.cmds td:last-child{color:var(--chalk-dim)}
+
+.rules{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+.rule{background:var(--felt-deep);border:1px solid var(--felt-line);border-radius:14px;padding:24px 28px;display:flex;gap:18px;align-items:flex-start}
+.rule .sign{font-family:var(--mono);font-weight:700;font-size:22px;line-height:1.3}
+.rule .sign.up{color:var(--win)}.rule .sign.down{color:var(--loss)}.rule .sign.g{color:var(--gold)}
+.rule p{font-size:14.5px;color:var(--chalk-dim)}
+.rule p strong{color:var(--chalk)}
+
+footer{padding:56px 0 40px;border-top:1px solid var(--felt-line);margin-top:40px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:16px}
+footer p{font-family:var(--mono);font-size:12.5px;color:var(--chalk-dim)}
+footer a{color:var(--gold);text-decoration:none}
+footer a:hover{text-decoration:underline}
+
+a:focus-visible,button:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+
+@media(max-width:880px){
+  .hero{grid-template-columns:1fr;gap:40px}
+  .loop{grid-template-columns:1fr}
+  .tut-step{grid-template-columns:1fr;gap:8px}
+  .rules{grid-template-columns:1fr}
+  nav .links{gap:16px}
+  .cmds td:first-child{width:auto;white-space:normal}
+  .block{padding-right:70px}
+}
+@media(prefers-reduced-motion:reduce){
+  *{animation:none!important;transition:none!important}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<nav>
+  <a class="brand" href="#">betit<span class="dot">.</span></a>
+  <div class="links">
+    <a href="#tutorial">tutorial</a>
+    <a href="#commands">commands</a>
+    <a href="https://github.com/rahulmodii/betit">github</a>
+  </div>
+</nav>
+
+<header class="hero">
+  <div>
+    <p class="eyebrow">a claude code plugin</p>
+    <h1>Your AI puts <span class="stake">points</span> on the line.</h1>
+    <p class="sub">Before every task, Claude bets it ships correct in <strong>one shot</strong>. You're the judge. Wins pay out, losses sting, streaks compound — and the score follows it across every session.</p>
+    <div class="cmd"><span class="p">/</span><code>plugin marketplace add rahulmodii/betit</code><button class="copy" data-c="/plugin marketplace add rahulmodii/betit">copy</button></div>
+    <div class="cmd"><span class="p">/</span><code>plugin install betit@rahulmodi</code><button class="copy" data-c="/plugin install betit@rahulmodi">copy</button></div>
+  </div>
+  <div class="term" aria-label="Example betit session">
+    <div class="term-bar"><i></i><i></i><i></i><span>claude — betit</span></div>
+    <div class="term-body" id="demo" aria-live="off"></div>
+  </div>
+</header>
+
+<section>
+  <div class="sec-head"><span class="tag">the loop</span><h2>Three moves per hand</h2></div>
+  <div class="loop">
+    <div class="card">
+      <div class="chip">🎲</div>
+      <h3>Claude bets</h3>
+      <p>A new task lands and Claude opens with a wager — <code>5</code> to <code>50</code> points — sized to its real confidence. Overbetting and losing hurts more than playing it honest.</p>
+    </div>
+    <div class="card">
+      <div class="chip">⚙</div>
+      <h3>Claude ships</h3>
+      <p>The work happens. One attempt. No hedging, no "let me know if you'd like changes" escape hatch. The bet stays open until you rule on it.</p>
+    </div>
+    <div class="card">
+      <div class="chip">⚖</div>
+      <h3>You judge</h3>
+      <p>Say <code>win</code> or <code>lose</code> — or just point at the bug. Any correction, any second attempt, any dispute: that's a loss. Your call is final. Claude can't grade its own homework.</p>
+    </div>
+  </div>
+</section>
+
+<section id="tutorial">
+  <div class="sec-head"><span class="tag">tutorial</span><h2>From zero to first bet</h2></div>
+
+  <div class="tut-step">
+    <div><span class="tut-num">step 1 / 4</span><h3>Install</h3></div>
+    <div>
+      <p class="note">Inside any Claude Code session, add the marketplace and install. The hook and skill register automatically — nothing else to configure.</p>
+      <div class="block"><button class="copy" data-c="/plugin marketplace add rahulmodii/betit
+/plugin install betit@rahulmodi">copy</button>/plugin marketplace add rahulmodii/betit
+/plugin install betit@rahulmodi
+<span class="out">✓ Installed betit v1.0.0 — hook + skill + 6 commands registered</span></div>
+    </div>
+  </div>
+
+  <div class="tut-step">
+    <div><span class="tut-num">step 2 / 4</span><h3>Give it a task</h3></div>
+    <div>
+      <p class="note">Just work normally. Every new task triggers a bet before any code gets written. Follow-ups, questions and chat don't count — only real tasks make it to the table.</p>
+      <div class="block"><button class="copy" data-c="fix the meal_id jumping bug in MealController">copy</button><span class="out">&gt;</span> fix the meal_id jumping bug in MealController
+<span class="out">🎲 Betting 30 pts I one-shot this.
+BET PLACED: 30 pts on one-shotting "fix meal_id jumping". Current bank: 100 pts.</span></div>
+    </div>
+  </div>
+
+  <div class="tut-step">
+    <div><span class="tut-num">step 3 / 4</span><h3>Rule on it</h3></div>
+    <div>
+      <p class="note">When the work lands, Claude asks for the verdict. Approve it, or push back with exactly what was wrong — the reason gets recorded in the ledger. Disputes never turn into arguments; a dispute <em>is</em> the verdict.</p>
+      <div class="block"><button class="copy" data-c="/betit:lose still jumps on concurrent inserts">copy</button><span class="out">&gt;</span> /betit:lose still jumps on concurrent inserts
+<span class="out">LOSS ❌  "fix meal_id jumping"  -30 pts
+  Points: 70  [Shaky]  |  Record: 0W - 1L  |  Streak: L1</span></div>
+    </div>
+  </div>
+
+  <div class="tut-step">
+    <div><span class="tut-num">step 4 / 4</span><h3>Watch the score</h3></div>
+    <div>
+      <p class="note">The bank lives in <code>~/.claude/betit/state.json</code> — global, persistent, shared across every project and session. Ranks run from <code>BANKRUPT</code> to <code>ONE-SHOT LEGEND</code>.</p>
+      <div class="block"><button class="copy" data-c="/betit:score">copy</button><span class="out">&gt;</span> /betit:score
+<span class="out">BETIT SCOREBOARD
+  Points: 228  [Confident]
+  Record: 4W - 1L  (win rate 80%)
+  Streak: W3 🔥  |  Best: W3  Worst: L1</span></div>
+    </div>
+  </div>
+</section>
+
+<section id="commands" class="cmds">
+  <div class="sec-head"><span class="tag">reference</span><h2>Commands</h2></div>
+  <table>
+    <tr><td>/betit:score</td><td>Show the scoreboard — bank, record, win rate, streaks, any open bet.</td></tr>
+    <tr><td>/betit:win [note]</td><td>Your verdict: clean one-shot. Pays the wager, extends the streak.</td></tr>
+    <tr><td>/betit:lose [reason]</td><td>Your verdict: not a one-shot. Deducts the wager, logs your reason in the ledger.</td></tr>
+    <tr><td>/betit:history [n]</td><td>The ledger — last n settled bets with deltas and dispute notes.</td></tr>
+    <tr><td>/betit:cancel</td><td>Task got abandoned or redefined mid-hand. Voids the open bet, no points move.</td></tr>
+    <tr><td>/betit:reset</td><td>Wipe the record, restore the bank to 100. Asks before it burns anything.</td></tr>
+  </table>
+</section>
+
+<section>
+  <div class="sec-head"><span class="tag">house rules</span><h2>Scoring</h2></div>
+  <div class="rules">
+    <div class="rule"><span class="sign up">+W</span><p><strong>Win pays the wager.</strong> Correct and complete on the first attempt, zero follow-up fixes. If you had to ask twice, it wasn't one shot.</p></div>
+    <div class="rule"><span class="sign down">−W</span><p><strong>Loss eats the wager.</strong> Any bug, correction, or misread of the task. The bank floors at 0 — going bankrupt is its own punishment.</p></div>
+    <div class="rule"><span class="sign g">🔥</span><p><strong>Streaks compound.</strong> Three straight wins and each win pays a bonus equal to the streak. Cold streaks get logged too.</p></div>
+    <div class="rule"><span class="sign g">100</span><p><strong>Everyone starts at 100.</strong> Wagers run 5–50, sized to confidence. Honest sizing beats bravado — that's the whole point.</p></div>
+  </div>
+</section>
+
+<footer>
+  <p>betit v1.0.0 — <a href="https://github.com/rahulmodii/betit">source</a> · MIT-spirited, take it</p>
+  <p>built by <a href="https://rahulmodi.dev">rahulmodi.dev</a></p>
+</footer>
+
+</div>
+
+<script>
+document.querySelectorAll('.copy').forEach(b=>{
+  b.addEventListener('click',()=>{
+    navigator.clipboard.writeText(b.dataset.c).then(()=>{
+      b.textContent='copied';b.classList.add('done');
+      setTimeout(()=>{b.textContent='copy';b.classList.remove('done')},1600);
+    });
+  });
+});
+
+const lines=[
+  {t:'> ',c:'t-p',nl:false},
+  {t:'add a /streak endpoint to BurnRate\n',c:'',type:true},
+  {t:'🎲 Betting 35 pts I one-shot this.\n',c:'t-gold',d:500},
+  {t:'BET PLACED: 35 pts on "streak endpoint". Bank: 193 pts.\n\n',c:'t-dim',d:300},
+  {t:'  · reading routes/api.php\n  · writing StreakController\n  · wiring GET /api/streak\n\n',c:'t-dim',d:700},
+  {t:'Done. 🎲 Bet open (35 pts) — one-shot or not?\n',c:'',d:600},
+  {t:'> ',c:'t-p',nl:false,d:900},
+  {t:'win\n',c:'',type:true,d:300},
+  {t:'WIN ✅  "streak endpoint"  +38 pts (+3 streak bonus)\n\n',c:'t-win',d:400},
+  {t:'BETIT SCOREBOARD\n  Points: 231  [Confident]\n  Record: 5W - 1L  (win rate 83%)\n  Streak: W3 🔥  |  Best: W3\n',c:'t-gold',d:200}
+];
+const demo=document.getElementById('demo');
+const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
+function render(){
+  if(reduced){
+    lines.forEach(l=>{const s=document.createElement('span');if(l.c)s.className=l.c;s.textContent=l.t;demo.appendChild(s)});
+    return;
+  }
+  const cur=document.createElement('span');cur.className='cursor';demo.appendChild(cur);
+  let i=0;
+  function next(){
+    if(i>=lines.length){setTimeout(()=>{demo.innerHTML='';render()},7000);return}
+    const l=lines[i++];
+    const s=document.createElement('span');if(l.c)s.className=l.c;demo.insertBefore(s,cur);
+    setTimeout(()=>{
+      if(l.type){
+        let j=0;const iv=setInterval(()=>{s.textContent+=l.t[j++];if(j>=l.t.length){clearInterval(iv);next()}},45);
+      }else{s.textContent=l.t;next()}
+    },l.d||120);
+  }
+  next();
+}
+render();
+</script>
+</body>
+</html>
